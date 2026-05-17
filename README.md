@@ -18,7 +18,7 @@ A two-stage Snakemake pipeline for sifting through sequences and identifying pro
 - [External tools](#external-tools)
 - [Disk-space & runtime expectations](#disk-space--runtime-expectations)
 - [Troubleshooting](#troubleshooting)
-- [License](#licensing)
+- [License](#license)
 
 ---
 
@@ -313,7 +313,7 @@ The `setup_*.sh` scripts retry up to twice on corrupt archives. If they still fa
 ---
 
 
-## Licensing
+## License
 
 - **Source code**: MIT License (see `LICENSE`)
 - **Predicted structures** (`/pdbs/`): subject to the
