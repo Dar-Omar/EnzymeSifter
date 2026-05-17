@@ -3,12 +3,12 @@ channels:
   - conda-forge
   - defaults
 dependencies:
-  - python>=3.9,<3.11
-  - pandas
-  - biopython
-  - numpy
-  - pytorch>=1.9
-  - onnxruntime
+  - python=3.10.20
+  - pandas=2.3.3
+  - biopython=1.87
+  - numpy=2.2.6
+  - pytorch=2.10.0
+  - onnxruntime=1.26.0
   - pip
   - pip:
-      - fair-esm
+      - fair-esm==2.0.0
