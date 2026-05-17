@@ -96,16 +96,17 @@ EnzymeSifter creates and manages its own conda environments automatically via `s
 
 ## Installation
 
+Clone the repository:
+
 ```bash
-git clone https://github.com/<your-user>/EnzymeSifter.git
+git clone https://github.com/Dar-Omar/EnzymeSifter.git
 cd EnzymeSifter
+```
 
-# Set up the controller environment (snakemake + conda frontend)
-conda create -n enzymesifter -c conda-forge -c bioconda \
-    snakemake mamba -y
-conda activate enzymesifter
+Make the run scripts executable:
 
-chmod +x run_stage1.sh run_stage2.sh scripts/*.sh
+```bash
+chmod +x run_stage1.sh run_stage2.sh
 ```
 
 That is all you need to do. On the first invocation of either stage, Snakemake will build all of the required tool-specific conda environments under `.snakemake/conda/`, and the relevant setup scripts (`scripts/setup_*.sh`) will fetch external databases and model weights into `external/`.
@@ -375,20 +376,5 @@ MIT — see `LICENSE`. Please note that the external tools EnzymeSifter wraps ha
   [AlphaFold Server Output Terms of Use](https://alphafoldserver.com/output-terms).
   See `/pdbs/TERMS.txt` for details. Non-commercial use only.
   
-
-## Installation
-
-Clone the repository:
-
-```bash
-git clone https://github.com/Dar-Omar/EnzymeSifter.git
-cd EnzymeSifter
-```
-
-Make the run scripts executable:
-
-```bash
-chmod +x run_stage1.sh run_stage2.sh
-```
 
 
