@@ -85,12 +85,10 @@ The pipeline runs in two stages with a structure-prediction step (carried out by
 
 ## Requirements
 
-- Linux (tested on RHEL/CentOS; should work on any modern distribution)
-- [Conda](https://docs.conda.io/en/latest/miniconda.html) or [Mamba](https://github.com/mamba-org/mamba) (Mamba strongly recommended for speed)
-- [Snakemake](https://snakemake.readthedocs.io/) ≥ 7
-- `wget` or `curl`, plus `git` and `unzip`
-- ~30 GB free disk for first-run auto-downloads of external databases and model weights (see [Disk-space & runtime expectations](#disk-space--runtime-expectations))
-- A CPU is sufficient for all steps; a GPU is **not** required but will speed up CLEAN, NetSolP, and Seq2Topt inference if available
+- Linux
+- [Conda](https://docs.conda.io/en/latest/miniconda.html)
+- [Snakemake](https://snakemake.readthedocs.io/)
+- CPU is sufficient for all steps.
 
 EnzymeSifter creates and manages its own conda environments automatically via `snakemake --use-conda`. You do not need to install any of the underlying tools yourself.
 
