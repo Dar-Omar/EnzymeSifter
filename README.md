@@ -288,7 +288,7 @@ EnzymeSifter/
 | `chain_id` | derived from SEQRES | Only present in the multi-chain table. |
 | `predicted_solubility` | NetSolP | 0–1, higher = more soluble. |
 | `predicted_usability` | NetSolP | 0–1, higher = more usable. |
-| `predicted_ph_opt` | pHoptNN | Predicted optimal pH (structure-level). |
+| `predicted_ph_opt` | pHoptNN | Predicted optimal pH. |
 | `predicted_topt_C` | Seq2Topt | Predicted optimum temperature, °C. |
 | `predicted_tm_C` | Seq2Tm | Predicted melting temperature, °C. |
 | `score` | EnzymeSifter | Combined score over user-specified filters, `[0, 1]`. |
@@ -299,46 +299,7 @@ EnzymeSifter/
 
 ---
 
-## External tools
-
-EnzymeSifter orchestrates the following tools. Please cite their authors if you use the corresponding output in published work.
-
-| Tool | Purpose | Reference |
-|---|---|---|
-| [CLEAN](https://github.com/tttianhao/CLEAN) | EC-number prediction | Yu, Lu, Tianhao *et al.* *Science* 2023 |
-| [Pfam / HMMER](http://hmmer.org/) | Domain assignment | Mistry *et al.* *NAR* 2021; Eddy *PLoS Comput. Biol.* 2011 |
-| [MMseqs2](https://github.com/soedinglab/MMseqs2) | Fast clustering | Steinegger & Söding *Nat. Biotechnol.* 2017 |
-| [EnzyMM](https://pypi.org/project/enzymm/) | Catalytic-site detection | — |
-| [NetSolP-1.0](https://services.healthtech.dtu.dk/services/NetSolP-1.0/) | Solubility/usability | Thumuluri *et al.* *Bioinformatics* 2022 |
-| [pHoptNN](https://github.com/kuenzelab/pHoptNN) | Optimal pH | Künzel lab |
-| [Seq2Topt](https://github.com/SizheQiu/Seq2Topt) | Topt / Tm | Qiu *et al.* |
-| [MUSCLE 5](https://drive5.com/muscle/) | Multiple-sequence alignment | Edgar *Nat. Commun.* 2022 |
-| [Biopython](https://biopython.org/) | NJ tree, parsers | Cock *et al.* *Bioinformatics* 2009 |
-
----
-
-## Disk-space & runtime expectations
-
-| Component | Disk | Notes |
-|---|---|---|
-| Pfam-A.hmm | ~1.5 GB | One-time download. |
-| CLEAN + weights | < 1 GB | Excludes ESM-1b cache. |
-| ESM-1b cache | ~7 GB | Stored under `~/.cache/torch/`. Downloaded on first CLEAN inference. |
-| NetSolP-1.0 | ~5.6 GB | One-time download. |
-| Seq2Topt / pHoptNN | < 1 GB | Both small. |
-| `.snakemake/conda/` | ~10 GB | Tool-specific environments. |
-
-Runtime is dominated by (a) HMMER + CLEAN at Stage 1 (scales with the number of input sequences) and (b) NetSolP + Seq2Topt at Stage 2 (scales with the number of unique chains). Both stages parallelise transparently with `snakemake -j`.
-
----
-
 ## Troubleshooting
-
-**Stage 1 with `-ec` fails immediately with an LD/CUDA error.**
-The CLEAN environment ships `torch==1.11.0` (CPU). The wrapper exports `LD_LIBRARY_PATH=${CONDA_PREFIX}/lib`. If you see `libstdc++.so.6: GLIBCXX_3.4.X not found`, ensure your conda environment was activated and that no system-level `LD_LIBRARY_PATH` is taking precedence.
-
-**`hmmfetch: index missing` during Pfam filter.**
-Re-run `bash scripts/setup_pfam.sh external/pfam` — this rebuilds the `.ssi` index after stripping ACC version suffixes.
 
 **`No SEQRES sequences found in the PDB`.**
 Several structure-prediction tools omit SEQRES records by default. Use a tool that emits them (or post-process the PDB to add them) — Stage 2 relies on SEQRES for sequence recovery.
