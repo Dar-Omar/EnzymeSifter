@@ -18,7 +18,7 @@ A two-stage Snakemake pipeline for sifting through sequences and identifying pro
 - [External tools](#external-tools)
 - [Disk-space & runtime expectations](#disk-space--runtime-expectations)
 - [Troubleshooting](#troubleshooting)
-- [License](#license)
+- [License](#licensing)
 
 ---
 
