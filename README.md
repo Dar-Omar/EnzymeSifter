@@ -1,8 +1,6 @@
 # EnzymeSifter
 
-A two-stage Snakemake pipeline for sifting through large enzyme sequence collections and identifying promising candidates for downstream characterisation — from raw FASTA all the way to ranked, clade-representative enzymes annotated with predicted solubility, optimal pH, optimal temperature, and melting temperature.
-
-EnzymeSifter wraps a number of state-of-the-art tools (CLEAN, EnzyMM, NetSolP, pHoptNN, Seq2Topt, MMseqs2, HMMER, MUSCLE) behind a single command-line interface and handles all of their setup, environment management, and inter-tool data plumbing for you.
+A two-stage Snakemake pipeline for sifting through sequences and identifying promising enzyme candidates for downstream characterisation — from raw FASTA all the way to ranked, clade-representative enzymes annotated with predicted biochemical values.
 
 ---
 
@@ -20,22 +18,16 @@ EnzymeSifter wraps a number of state-of-the-art tools (CLEAN, EnzyMM, NetSolP, p
 - [External tools](#external-tools)
 - [Disk-space & runtime expectations](#disk-space--runtime-expectations)
 - [Troubleshooting](#troubleshooting)
-- [Citing EnzymeSifter](#citing-enzymesifter)
 - [License](#license)
 
 ---
 
 ## Overview
 
-EnzymeSifter is built for the common bioinformatics scenario where you have:
+The pipeline runs in two stages with a structure-prediction step (carried out by the user, externally) in between. Users are free to choose any of the optional filters:
 
-- a large collection of candidate enzyme sequences (anywhere from hundreds to hundreds of thousands), and
-- a need to triage them down to a tractable, diverse, biophysically promising shortlist before committing to wet-lab work or expensive structural characterisation.
-
-The pipeline runs in two stages with a structure-prediction step (carried out by the user, externally) in between:
-
-1. **Stage 1 — sequence-level triage.** Filter by catalytic-residue motif, Pfam domain, and/or CLEAN-predicted EC number, then cluster at a user-defined identity threshold using MMseqs2.
-2. **(User step) Structure prediction.** Generate PDB structures for the Stage 1 representatives using a tool of your choice (AlphaFold, ESMFold, ColabFold, etc.).
+1. **Stage 1 — filtering of sequences.** Filter by catalytic-residue motif, Pfam domain, and/or CLEAN-predicted EC number, then cluster at a user-defined identity threshold using MMseqs2.
+2. **(User step) Structure prediction.** Generate PDB structures for the Stage 1 filtered sequences using a tool of your choice.
 3. **Stage 2 — structural & biophysical screening.** Confirm enzymatic activity with EnzyMM, predict solubility/usability (NetSolP), optimal pH (pHoptNN), and optimal/melting temperatures (Seq2Topt/Seq2Tm), build an NJ phylogenetic tree, optionally partition it into clades, and select the best-scoring representative per clade according to your filter criteria.
 
 ---
@@ -44,7 +36,7 @@ The pipeline runs in two stages with a structure-prediction step (carried out by
 
 ```
                           ┌────────────────────────────────┐
-                          │   Input FASTA (or directory)   │
+                          │           Input FASTA          │
                           └───────────────┬────────────────┘
                                           │
                   ╔═══════════════════════▼═══════════════════════╗
@@ -53,12 +45,12 @@ The pipeline runs in two stages with a structure-prediction step (carried out by
                   ╚═══════════════════════╤═══════════════════════╝
                                           │
                           ┌───────────────▼────────────────┐
-                          │   data/stage1/nonredundant.fa  │
+                          │ data/stage1/nonredundant.fasta │
                           └───────────────┬────────────────┘
                                           │
                   ╔═══════════════════════▼═══════════════════════╗
-                  ║    (user) predict 3D structures externally    ║
-                  ║       AlphaFold / ESMFold / ColabFold …       ║
+                  ║              predict 3D structures            ║
+                  ║                done by the user               ║
                   ╚═══════════════════════╤═══════════════════════╝
                                           │
                           ┌───────────────▼────────────────┐
@@ -67,12 +59,12 @@ The pipeline runs in two stages with a structure-prediction step (carried out by
                                           │
    ╔══════════════════════════════════════▼══════════════════════════════════════╗
    ║                                  STAGE 2                                    ║
-   ║   EnzyMM ── filter to enzymatic hits ──┬── NetSolP   (solubility, usable)  ║
-   ║                                        ├── pHoptNN   (pH optimum)          ║
-   ║                                        ├── Seq2Topt  (T optimum)           ║
-   ║                                        ├── Seq2Tm    (T melting)           ║
-   ║                                        └── MUSCLE ─► NJ tree ─► clades ──► ║
-   ║                                                       representatives      ║
+   ║   EnzyMM ── filter to enzymatic hits ──┬── NetSolP   (solubility, usable)   ║
+   ║                                        ├── pHoptNN   (pH optimum)           ║
+   ║                                        ├── Seq2Topt  (T optimum)            ║
+   ║                                        ├── Seq2Tm    (T melting)            ║
+   ║                                        └── MUSCLE ─► NJ tree ─► clades ──►  ║
+   ║                                                       representatives       ║
    ╚══════════════════════════════════════╤══════════════════════════════════════╝
                                           │
                           ┌───────────────▼────────────────┐
