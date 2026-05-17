@@ -359,15 +359,6 @@ The `setup_*.sh` scripts retry up to twice on corrupt archives. If they still fa
 
 ---
 
-## Citing EnzymeSifter
-
-If you use EnzymeSifter in your work, please cite this repository and the underlying tools listed in [External tools](#external-tools).
-
----
-
-## License
-
-MIT — see `LICENSE`. Please note that the external tools EnzymeSifter wraps have their own licences; consult each project for details.
 
 ## Licensing
 
