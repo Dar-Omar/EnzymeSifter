@@ -1,0 +1,6 @@
+name: muscle
+channels:
+  - conda-forge
+  - bioconda
+dependencies:
+  - muscle>=5.1

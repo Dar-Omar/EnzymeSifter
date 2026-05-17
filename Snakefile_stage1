@@ -1,0 +1,109 @@
+import os
+from pathlib import Path
+
+configfile: "config/config.yaml"
+
+INPUT_FASTA = config.get("input_fasta", None)
+if INPUT_FASTA is None:
+    raise ValueError(
+        "ERROR: You must provide an input FASTA file or directory.\n"
+        "Example: ./run_stage1.sh /path/to/sequences.fasta"
+    )
+
+INPUT_FASTA = os.path.abspath(INPUT_FASTA)
+if not os.path.exists(INPUT_FASTA):
+    raise ValueError(f"ERROR: Input path does not exist:\n{INPUT_FASTA}")
+
+IDENTITY = config.get("identity", None)
+RESIDUES = config.get("residues", None)
+PFAM     = config.get("pfam",     None)
+EC       = config.get("ec",       None)
+
+PFAM_DIR = "external/pfam"
+PFAM_DB  = os.path.join(PFAM_DIR, "Pfam-A.hmm")
+
+CLEAN_DIR = "external/CLEAN"
+
+for d in ["data/stage1", "logs/stage1"]:
+    Path(d).mkdir(parents=True, exist_ok=True)
+
+
+rule all:
+    input:
+        "data/stage1/nonredundant.fasta",
+        "data/stage1/clustering_report.tsv",
+        "data/stage1/motif_report.tsv",
+        "data/stage1/pfam_report.tsv",
+        "data/stage1/ec_report.tsv",
+
+rule setup_pfam:
+    output:
+        sentinel=os.path.join(PFAM_DIR, ".setup_done"),
+    log:
+        "logs/stage1/setup_pfam.log",
+    conda:
+        "envs/stage1.yaml"
+    shell:
+        r"""
+        bash scripts/setup_pfam.sh {PFAM_DIR} > {log} 2>&1
+        """
+
+rule setup_clean:
+    output:
+        sentinel=os.path.join(CLEAN_DIR, ".setup_done"),
+    log:
+        "logs/stage1/setup_clean.log",
+    conda:
+        "envs/clean.yaml"
+    shell:
+        r"""
+        export LD_LIBRARY_PATH="${{CONDA_PREFIX}}/lib:${{LD_LIBRARY_PATH:-}}"
+        bash scripts/setup_clean.sh {CLEAN_DIR} > {log} 2>&1
+        """
+
+def cluster_inputs(wildcards):
+    inputs = {"fasta": INPUT_FASTA}
+    if PFAM is not None:
+        inputs["pfam_sentinel"] = os.path.join(PFAM_DIR, ".setup_done")
+    if EC is not None:
+        inputs["clean_sentinel"] = os.path.join(CLEAN_DIR, ".setup_done")
+    return inputs
+
+rule cluster_sequences:
+    input:
+        unpack(cluster_inputs),
+    output:
+        nonredundant   = "data/stage1/nonredundant.fasta",
+        cluster_report = "data/stage1/clustering_report.tsv",
+        motif_report   = "data/stage1/motif_report.tsv",
+        pfam_report    = "data/stage1/pfam_report.tsv",
+        ec_report      = "data/stage1/ec_report.tsv",
+    log:
+        "logs/stage1/cluster_sequences.log",
+    params:
+        identity_arg = (f"--identity {IDENTITY}" if IDENTITY is not None else ""),
+        residues_arg = (f"--residues {RESIDUES!r}" if RESIDUES is not None else ""),
+        pfam_arg     = (f"--pfam {PFAM}" if PFAM is not None else ""),
+        pfam_db_arg  = (f"--pfam_db {PFAM_DB}" if PFAM is not None else ""),
+        ec_arg        = (f"--ec {EC}" if EC is not None else ""),
+        clean_dir_arg = (f"--clean_dir {CLEAN_DIR}" if EC is not None else ""),
+    conda:
+        "envs/clean.yaml" if EC is not None else "envs/stage1.yaml"
+    shell:
+        r"""
+        export LD_LIBRARY_PATH="${{CONDA_PREFIX}}/lib:${{LD_LIBRARY_PATH:-}}"
+        python scripts/cluster_sequences.py \
+            --input          {input.fasta} \
+            --nonredundant   {output.nonredundant} \
+            --cluster_report {output.cluster_report} \
+            --motif_report   {output.motif_report} \
+            --pfam_report    {output.pfam_report} \
+            --ec_report      {output.ec_report} \
+            {params.identity_arg} \
+            {params.residues_arg} \
+            {params.pfam_arg} \
+            {params.pfam_db_arg} \
+            {params.ec_arg} \
+            {params.clean_dir_arg} \
+            2> {log}
+        """

@@ -1,0 +1,21 @@
+# Excluded data folders
+data/
+external/
+predictions_output/
+logs/
+.snakemake/
+test_input/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+env/
+.ipynb_checkpoints/
+
+# OS / editor
+.DS_Store
+.vscode/
+.idea/

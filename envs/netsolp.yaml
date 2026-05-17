@@ -1,0 +1,14 @@
+name: netsolp
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python>=3.9,<3.11
+  - pandas
+  - biopython
+  - numpy
+  - pytorch>=1.9
+  - onnxruntime
+  - pip
+  - pip:
+      - fair-esm

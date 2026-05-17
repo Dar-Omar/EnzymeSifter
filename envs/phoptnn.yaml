@@ -1,0 +1,23 @@
+name: phoptnn
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.10
+  - rdkit
+  - pandas
+  - numpy
+  - scipy
+  - scikit-learn
+  - biopython
+  - pip
+  - pip:
+      - --extra-index-url https://download.pytorch.org/whl/cpu
+      - torch==2.4.0
+      - --find-links https://data.pyg.org/whl/torch-2.4.0+cpu.html
+      - torch_scatter
+      - torch_sparse
+      - torch_cluster
+      - torch_geometric
+      - e3nn
+      - pdb2pqr

@@ -1,0 +1,9 @@
+name: stage1
+channels:
+  - conda-forge
+  - bioconda
+dependencies:
+  - python>=3.9
+  - hmmer>=3.3
+  - mmseqs2
+  - biopython

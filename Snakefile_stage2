@@ -1,0 +1,446 @@
+import os
+import glob
+from pathlib import Path
+
+configfile: "config/config.yaml"
+
+# User must provide the directory containing PDB files
+PDB_DIR = config.get("pdb_dir", None)
+if PDB_DIR is None:
+    raise ValueError(
+        "ERROR: You must provide a PDB directory.\n"
+    )
+
+PDB_DIR = os.path.abspath(PDB_DIR)
+
+if not os.path.isdir(PDB_DIR):
+    raise ValueError(f"ERROR: PDB directory does not exist:\n{PDB_DIR}")
+
+PDBS = [
+    os.path.splitext(os.path.basename(p))[0]
+    for p in glob.glob(os.path.join(PDB_DIR, "*.pdb"))
+]
+
+if len(PDBS) == 0:
+    raise ValueError(f"ERROR: No .pdb files found in directory: {PDB_DIR}")
+
+for d in [
+    "data/enzymm",
+    "data/sequences",
+    "logs/enzymm",
+    "logs/extract_sequences",
+    "data/alignments",
+    "logs/muscle",
+    "data/predictions",
+    "logs/netsolp",
+    "logs/phoptnn",
+    "logs/seq2topt",
+    "data/clades",
+    "logs/clades",
+]:
+    Path(d).mkdir(parents=True, exist_ok=True)
+
+NETSOLP_DIR = "external/NetSolP-1.0"
+NETSOLP_PS  = os.path.join(NETSOLP_DIR, "PredictionServer")
+PHOPTNN_DIR = "external/pHoptNN"
+SEQ2TOPT_DIR = "external/Seq2Topt"
+
+
+
+FILTER_SPECS = {}
+for _flag in ["solubility", "usability", "phopt", "topt", "tm"]:
+    _val = config.get(f"filter_{_flag}", None)
+    if _val is not None:
+        FILTER_SPECS[_flag] = str(_val)
+
+DO_FILTER = len(FILTER_SPECS) > 0
+
+CLADES_K = config.get("clades", None)
+if CLADES_K is not None:
+    CLADES_K = int(CLADES_K)
+    if CLADES_K < 1:
+        raise ValueError(f"ERROR: -clades must be >= 1 (got {CLADES_K})")
+DO_CLADES = CLADES_K is not None
+
+
+
+def get_hit_pdbs(wildcards=None):
+    """
+    Called after the checkpoint resolves.  Returns list of PDB basenames
+    whose EnzyMM TSV contained at least one data row.
+    """
+    ck = checkpoints.collect_enzymm_hits.get()
+    with open(ck.output.hitlist) as fh:
+        return [line.strip() for line in fh if line.strip()]
+
+
+rule all:
+    input:
+        "data/alignments/muscle.afa",
+        "data/trees/nj_tree.nwk",
+        "data/trees/nj_tree.png" if not DO_FILTER else [],
+        "data/predictions/netsolp.tsv",
+        "data/predictions/phoptnn.tsv",
+        "data/predictions/seq2topt_topt.tsv",
+        "data/predictions/seq2topt_tm.tsv",
+        "predictions_output/.done",
+        "data/clades/clade_assignments.tsv" if DO_CLADES else [],
+        "data/trees/nj_tree_clades.png"     if DO_CLADES else [],
+        "predictions_output/.filter_done" if DO_FILTER else [],
+        "predictions_output/clade_representatives.tsv"
+            if (DO_CLADES and DO_FILTER) else [],
+rule run_enzymm:
+    input:
+        pdb=lambda wc: os.path.join(PDB_DIR, f"{wc.pdb}.pdb"),
+    output:
+        tsv="data/enzymm/{pdb}.tsv",
+    log:
+        "logs/enzymm/{pdb}.log",
+    conda:
+        "envs/enzymm.yaml"
+    shell:
+        r"""
+        enzymm \
+            --input {input.pdb} \
+            --output {output.tsv} \
+            --verbose > {log} 2>&1
+        """
+
+
+# Collect which PDBs had at least 1 EnzyMM hit
+checkpoint collect_enzymm_hits:
+    input:
+        expand("data/enzymm/{pdb}.tsv", pdb=PDBS),
+    output:
+        hitlist="data/enzymm/hit_pdbs.txt",
+    run:
+        hits = []
+        for tsv_path in input:
+            pdb_name = os.path.splitext(os.path.basename(tsv_path))[0]
+            has_hit = False
+            with open(tsv_path) as fh:
+                for line in fh:
+                    # Skip comment lines and the header
+                    if line.startswith("#"):
+                        continue
+                    if line.startswith("query_id"):
+                        continue
+                    # Any remaining non-empty line is a data row
+                    if line.strip():
+                        has_hit = True
+                        break
+            if has_hit:
+                hits.append(pdb_name)
+        hits.sort()
+        with open(output.hitlist, "w") as out:
+            for h in hits:
+                out.write(h + "\n")
+
+
+# Extract sequences — only for PDBs that passed EnzyMM
+rule extract_sequences:
+    input:
+        pdb=lambda wc: os.path.join(PDB_DIR, f"{wc.pdb}.pdb"),
+    output:
+        fasta="data/sequences/{pdb}.fasta",
+    log:
+        "logs/extract_sequences/{pdb}.log",
+    conda:
+        "envs/extract_sequences.yaml"
+    shell:
+        r"""
+        python scripts/extract_sequences.py {input.pdb} {output.fasta} 2> {log}
+        """
+
+rule merge_sequences:
+    input:
+        fastas=lambda wc: expand(
+            "data/sequences/{pdb}.fasta",
+            pdb=get_hit_pdbs(wc),
+        ),
+    output:
+        merged="data/sequences/all_hits.fasta",
+    log:
+        "logs/merge_sequences.log",
+    conda:
+        "envs/extract_sequences.yaml"
+    shell:
+        r"""
+        cat {input.fastas} > {output.merged} 2> {log}
+        """
+
+rule setup_netsolp:
+    output:
+        sentinel=os.path.join(NETSOLP_PS, ".setup_done"),
+    log:
+        "logs/netsolp/setup_netsolp.log",
+    shell:
+        r"""
+        bash scripts/setup_netsolp.sh {NETSOLP_DIR} > {log} 2>&1
+        """
+rule setup_phoptnn:
+    output:
+        sentinel=os.path.join(PHOPTNN_DIR, ".setup_done"),
+    log:
+        "logs/phoptnn/setup_phoptnn.log",
+    shell:
+        r"""
+        bash scripts/setup_phoptnn.sh {PHOPTNN_DIR} > {log} 2>&1
+        """
+
+rule phoptnn:
+    input:
+        hitlist="data/enzymm/hit_pdbs.txt",
+        setup=os.path.join(PHOPTNN_DIR, ".setup_done"),
+    output:
+        tsv="data/predictions/phoptnn.tsv",
+    log:
+        "logs/phoptnn/phoptnn.log",
+    params:
+        phoptnn_dir=PHOPTNN_DIR,
+        pdb_dir=PDB_DIR,
+    conda:
+        "envs/phoptnn.yaml"
+    shell:
+        r"""
+        python scripts/run_phoptnn.py \
+            --pdb_dir {params.pdb_dir} \
+            --hit_list {input.hitlist} \
+            --phoptnn_dir {params.phoptnn_dir} \
+            --output {output.tsv} \
+            2> {log}
+        """
+
+rule setup_seq2topt:
+    output:
+        sentinel=os.path.join(SEQ2TOPT_DIR, ".setup_done"),
+    log:
+        "logs/seq2topt/setup_seq2topt.log",
+    shell:
+        r"""
+        bash scripts/setup_seq2topt.sh {SEQ2TOPT_DIR} > {log} 2>&1
+        """
+
+rule seq2topt:
+    input:
+        fasta="data/sequences/all_hits.fasta",
+        setup=os.path.join(SEQ2TOPT_DIR, ".setup_done"),
+    output:
+        topt="data/predictions/seq2topt_topt.tsv",
+        tm="data/predictions/seq2topt_tm.tsv",
+    log:
+        "logs/seq2topt/seq2topt.log",
+    params:
+        seq2topt_dir=SEQ2TOPT_DIR,
+    conda:
+        "envs/seq2topt.yaml"
+    shell:
+        r"""
+        python scripts/run_seq2topt.py \
+            --fasta {input.fasta} \
+            --seq2topt_dir {params.seq2topt_dir} \
+            --output_topt {output.topt} \
+            --output_tm {output.tm} \
+            2> {log}
+        """
+
+rule netsolp:
+    input:
+        fasta="data/sequences/all_hits.fasta",
+        setup=os.path.join(NETSOLP_PS, ".setup_done"),
+    output:
+        tsv="data/predictions/netsolp.tsv",
+    log:
+        "logs/netsolp/netsolp.log",
+    params:
+        netsolp_dir=NETSOLP_PS,
+        model_type=config.get("netsolp_model", "Distilled"),
+    conda:
+        "envs/netsolp.yaml"
+    shell:
+        r"""
+        python scripts/run_netsolp.py \
+            --fasta {input.fasta} \
+            --output {output.tsv} \
+            --netsolp_dir {params.netsolp_dir} \
+            --model_type {params.model_type} \
+            2> {log}
+        """
+
+rule muscle_alignment:
+    input:
+        "data/sequences/all_hits.fasta",
+    output:
+        "data/alignments/muscle.afa",
+    log:
+        "logs/muscle/muscle_alignment.log",
+    conda:
+        "envs/muscle.yaml"
+    shell:
+        r"""
+        muscle -align {input} -output {output} > {log} 2>&1
+        """
+
+rule build_nj_tree:
+    input:
+        "data/alignments/muscle.afa",
+    output:
+        "data/trees/nj_tree.nwk",
+    log:
+        "logs/build_nj_tree.log",
+    conda:
+        "envs/extract_sequences.yaml"
+    shell:
+        r"""
+        python scripts/build_nj_tree.py {input} {output} 2> {log}
+        """
+
+
+rule assign_clades:
+    input:
+        tree="data/trees/nj_tree.nwk",
+    output:
+        tsv="data/clades/clade_assignments.tsv",
+    params:
+        k=CLADES_K,
+    log:
+        "logs/clades/assign_clades.log",
+    conda:
+        "envs/extract_sequences.yaml"
+    shell:
+        r"""
+        python scripts/assign_clades.py \
+            {input.tree} {output.tsv} \
+            --clades {params.k} \
+            2> {log}
+        """
+
+
+def tree_clades_png_inputs(wildcards):
+    inputs = {
+        "tree":     "data/trees/nj_tree.nwk",
+        "clades":   "data/clades/clade_assignments.tsv",
+        "hit_list": "data/enzymm/hit_pdbs.txt",
+    }
+    if DO_FILTER:
+        inputs["representatives"] = "predictions_output/clade_representatives.tsv"
+    return inputs
+
+rule tree_clades_png:
+    input:
+        unpack(tree_clades_png_inputs),
+    output:
+        png="data/trees/nj_tree_clades.png",
+    log:
+        "logs/tree_clades_png.log",
+    params:
+        rep_arg=lambda wildcards, input: (
+            f"--representatives {input.representatives}" if DO_FILTER else ""
+        ),
+    conda:
+        "envs/extract_sequences.yaml"
+    shell:
+        r"""
+        python scripts/render_tree_png.py \
+            {input.tree} {output.png} \
+            --dpi 300 \
+            --clades {input.clades} \
+            --hit_list {input.hit_list} \
+            {params.rep_arg} \
+            2> {log}
+        """
+
+rule select_representatives:
+    input:
+        clades="data/clades/clade_assignments.tsv",
+        filter_done="predictions_output/.filter_done",
+        hit_list="data/enzymm/hit_pdbs.txt",
+    output:
+        tsv="predictions_output/clade_representatives.tsv",
+    log:
+        "logs/clades/select_representatives.log",
+    params:
+        spec_args=" ".join(
+            f"--{flag} {val}" for flag, val in FILTER_SPECS.items()
+        ),
+    conda:
+        "envs/extract_sequences.yaml"
+    shell:
+        r"""
+        filtered=$(ls predictions_output/*_filtered.tsv 2>/dev/null || true)
+        if [ -z "$filtered" ]; then
+            echo -e "clade_id\tID\tscore\tn_eligible_in_clade\tn_members_in_clade" \
+                > {output.tsv}
+            echo "[INFO] No *_filtered.tsv found — wrote empty representatives TSV." \
+                > {log}
+        else
+            python scripts/select_representatives.py \
+                --clades {input.clades} \
+                --hit_list {input.hit_list} \
+                --filtered $filtered \
+                --output {output.tsv} \
+                {params.spec_args} \
+                2> {log}
+        fi
+        """
+
+rule tree_png:
+    input:
+        "data/trees/nj_tree.nwk",
+    output:
+        "data/trees/nj_tree.png",
+    log:
+        "logs/tree_png.log",
+    conda:
+        "envs/extract_sequences.yaml"
+    shell:
+        r"""
+        python scripts/render_tree_png.py {input} {output} --dpi 300 2> {log}
+        """
+
+rule merge_predictions:
+     input:
+         hitlist="data/enzymm/hit_pdbs.txt",
+         netsolp="data/predictions/netsolp.tsv",
+         phoptnn="data/predictions/phoptnn.tsv",
+         seq2topt="data/predictions/seq2topt_topt.tsv",
+         seq2tm="data/predictions/seq2topt_tm.tsv",
+     output:
+         sentinel="predictions_output/.done",
+     log:
+         "logs/merge_predictions.log",
+     conda:
+         "envs/extract_sequences.yaml"
+     shell:
+         r"""
+         python scripts/merge_predictions.py \
+             --hit_list {input.hitlist} \
+             --netsolp  {input.netsolp} \
+             --phoptnn  {input.phoptnn} \
+             --seq2topt {input.seq2topt} \
+             --seq2tm   {input.seq2tm} \
+             --output_dir predictions_output \
+             2> {log} && touch {output.sentinel}
+         """
+
+rule filter_predictions:
+    input:
+        sentinel="predictions_output/.done",
+    output:
+        sentinel="predictions_output/.filter_done",
+    log:
+        "logs/filter_predictions.log",
+    params:
+        spec_args=" ".join(
+            f"--{flag} {val}" for flag, val in FILTER_SPECS.items()
+        ),
+    conda:
+        "envs/extract_sequences.yaml"
+    shell:
+        r"""
+        python scripts/filter_predictions.py \
+            --output_dir predictions_output \
+            {params.spec_args} \
+            2> {log} \
+        && touch {output.sentinel}
+        """
