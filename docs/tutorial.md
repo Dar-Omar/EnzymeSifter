@@ -197,7 +197,16 @@ When multiple flags are combined, they always apply in this fixed order:
 ```
  
 The cheap filters run first so the expensive predictors only see sequences that already passed the simpler tests.
- 
+
+
+### First-run downloads
+
+- NetSolP-1.0 from DTU (~5.6 GB) into `external/NetSolP-1.0/`
+- pHoptNN cloned from GitHub into `external/pHoptNN/`
+- Seq2Topt cloned from GitHub + weight files into `external/Seq2Topt/`
+
+EnzyMM is installed as a pip package via `envs/enzymm.yaml`.
+
 ---
  
 ## Stage 2 options reference
