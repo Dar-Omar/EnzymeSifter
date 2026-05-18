@@ -26,7 +26,6 @@ The input was a single multi-FASTA of **2,330,712 protein sequences** available 
 ```
 sed -E 's/^(>[^-]+)-NODE-[^_]+_([0-9]+).*/\1_\2/' soil_proteins_combined.fasta > soil_proteins.fasta
 ```
- 
 ### Stage 1 — filtering sequences
  
 ```bash
@@ -37,7 +36,8 @@ sed -E 's/^(>[^-]+)-NODE-[^_]+_([0-9]+).*/\1_\2/' soil_proteins_combined.fasta >
 - **`-pfam PF00089`** runs `hmmsearch` against Pfam HMM. The motif alone catches false positives that happen to contain the hexapeptide; requiring a Pfam Trypsin hit confirms the domain architecture.
 - **`-identity 50`** clusters the remaining sequences at 50% identity with MMseqs2 and keeps one representative per cluster.
 
-Stage 1 acted as a funnel and reduced the number of sequences from > 2.3 million to 122 trypsins using the above identified filters.
+Stage 1 acted as a funnel and reduced the number of sequences from > 2.3 million to 122 trypsins using the above identified filters. The input can be a single FASTA file (`.fasta`, `.fa`, `.faa`) or a directory containing one or more such files.
+
 
 ### Between the stages — structure prediction
  
