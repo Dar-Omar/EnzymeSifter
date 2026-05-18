@@ -122,7 +122,7 @@ Usage: ./run_stage2.sh /path/to/pdbs [filter options] [clade options]
 ./run_stage2.sh ~/trypsin_pdbs/ -solubility 0.6 -tm 55 -phopt 7:9 -topt 30:45 -clades 11
 ```
 
-See tutorial for complete features of the pipeline
+See [tutorial](tutorial.md) for complete features of the pipeline
 
 ---
 
