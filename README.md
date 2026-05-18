@@ -4,14 +4,13 @@ A two-stage Snakemake pipeline for sifting through protein sequences and identif
 
 ---
 
-## Table of contents
+## Contents
 
 - [Overview](#overview)
 - [Pipeline architecture](#pipeline-architecture)
 - [Requirements](#requirements)
 - [Installation](#installation)
 - [Usage](#Usage)
-- [Troubleshooting](#troubleshooting)
 - [License](#license)
 
 ---
