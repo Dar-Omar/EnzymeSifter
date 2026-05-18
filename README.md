@@ -10,9 +10,7 @@ A two-stage Snakemake pipeline for sifting through protein sequences and identif
 - [Pipeline architecture](#pipeline-architecture)
 - [Requirements](#requirements)
 - [Installation](#installation)
-- [Stage 1 — sequence filtering & clustering](#stage-1--sequence-filtering--clustering)
-- [Between the stages — structure prediction](#between-the-stages--structure-prediction)
-- [Stage 2 — structural & biophysical screening](#stage-2--structural--biophysical-screening)
+- [Usage](#Usage)
 - [External tools](#external-tools)
 - [Troubleshooting](#troubleshooting)
 - [License](#license)
@@ -101,26 +99,31 @@ That is all you need to do. On the first invocation of either stage, Snakemake w
 
 ---
 
-## Stage 1 — sequence filtering & clustering
+## Usage
+
+
+### Stage 1
 
 ```
-Usage: ./run_stage1.sh <input> [options]
+./run_stage1.sh <input> [options]
+```
+#### Example
+```bash
+./run_stage1.sh ~/soil_proteins_renamed.fasta -residues GDSGGP -pfam PF00089 -identity 50
 ```
 
-`<input>` can be a single FASTA file (`.fasta`, `.fa`, `.faa`) or a directory containing one or more such files (which will be concatenated transparently).
-
----
-
-## Between the stages — structure prediction
+### Between the stages — structure prediction
 
 Stage 2 needs a directory of PDB files corresponding to the Stage 1 non-redundant FASTA.
 
----
-
-## Stage 2 — structural & biophysical screening
+### Stage 2
 
 ```
 Usage: ./run_stage2.sh /path/to/pdbs [filter options] [clade options]
+```
+#### Example
+```bash
+./run_stage2.sh ~/trypsin_pdbs/ -solubility 0.6 -tm 55 -phopt 7:9 -topt 30:45 -clades 11
 ```
 
 ### First-run downloads
