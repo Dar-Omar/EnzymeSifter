@@ -137,43 +137,6 @@ EnzyMM is installed as a pip package via `envs/enzymm.yaml`.
 
 ---
 
-## Output structure
-
-```
-EnzymeSifter/
-├── data/
-│   ├── stage1/
-│   │   ├── nonredundant.fasta           # ← input to your structure predictor
-│   │   ├── clustering_report.tsv        # representative ↔ member mapping
-│   │   ├── motif_report.tsv             # per-seq motif hit positions
-│   │   ├── pfam_report.tsv              # per-seq Pfam hits
-│   │   └── ec_report.tsv                # CLEAN EC predictions
-│   ├── enzymm/
-│   │   ├── <pdb>.tsv                    # per-PDB EnzyMM output
-│   │   └── hit_pdbs.txt                 # PDBs with ≥1 enzymatic hit
-│   ├── sequences/
-│   │   ├── <pdb>.fasta                  # SEQRES-derived chain sequences
-│   │   └── all_hits.fasta               # merged FASTA for downstream tools
-│   ├── alignments/muscle.afa            # MUSCLE multiple-sequence alignment
-│   ├── trees/
-│   │   ├── nj_tree.nwk                  # Newick NJ tree (blosum62 distances)
-│   │   ├── nj_tree.png                  # plain tree render
-│   │   └── nj_tree_clades.png           # tree coloured by clade + ★ representatives
-│   ├── clades/clade_assignments.tsv     # tip_name ↔ clade_id
-│   └── predictions/
-│       ├── netsolp.tsv                  # raw NetSolP output
-│       ├── phoptnn.tsv                  # raw pHoptNN output
-│       ├── seq2topt_topt.tsv            # raw Seq2Topt output
-│       └── seq2topt_tm.tsv              # raw Seq2Tm output
-├── predictions_output/
-│   ├── all_predictions.tsv              # one row per PDB (single-chain case)
-│   ├── all_predictions_structure.tsv    # structure-level table (multi-chain case)
-│   ├── all_predictions_chains.tsv       # per-chain table (multi-chain case)
-│   ├── *_filtered.tsv                   # threshold-passing subsets
-│   └── clade_representatives.tsv        # one best enzyme per clade
-└── logs/                                # per-rule stderr captures
-```
-
 ## Troubleshooting
 
 **`No SEQRES sequences found in the PDB`.**
