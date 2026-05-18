@@ -7,10 +7,10 @@ This tutorial walks you through a complete, real EnzymeSifter run from start to 
 ## Contents
  
 - [Worked example: trypsins from soil samples](#worked-example-trypsins-from-soil-samples)
-  - [The starting material](#the-starting-sequences)
+  - [The starting sequences](#the-starting-sequences)
   - [Stage 1 — filtering sequences](#stage-1--filtering-sequences)
   - [Between the stages — structure prediction](#between-the-stages--structure-prediction)
-  - [Stage 2 — predicting properties and picking clade champions](#stage-2--predicting-properties-and-picking-clade-champions)
+  - [Stage 2 — predicting properties and representatives ](#stage-2--predicting-properties-and-representatives)
   - [Reading the outputs](#reading-the-outputs)
 - [Stage 1 options reference](#stage-1-options-reference)
 - [Stage 2 options reference](#stage-2-options-reference)
@@ -42,7 +42,7 @@ Stage 1 acted as a funnel and reduced the number of sequences from > 2.3 million
  
 The file extension (`.pdb`) and the presence of SEQRES records matter to Stage 2. After submitting our 122 sequences to AlphaFold server, the jobs were named as the headers of the sequences but with a (-) instead of the (.) in the headers. Gene numbers were also removed from the job name as no duplicates remained in the filtered dataset. PDBs are available at 
 
-### Stage 2 — structural features
+### Stage 2 — predicting properties and representatives
  
 ```bash
 ./run_stage2.sh /PATH/TO/pdbs/ -solubility 0.6 -tm 55 -phopt 7:9 -topt 30:45 -clades 11
