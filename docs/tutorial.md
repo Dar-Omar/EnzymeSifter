@@ -6,9 +6,9 @@ This tutorial walks you through a complete, real EnzymeSifter run from start to 
  
 ## Table of contents
  
-- [Worked example: trypsin-like proteases from a soil metaproteome](#worked-example-trypsin-like-proteases-from-a-soil-metaproteome)
+- [Worked example: trypsins from soil samples](#worked-example-trypsins-from-soil-samples)
   - [The starting material](#the-starting-material)
-  - [Stage 1 — filtering 2.3 M sequences down to 122 representatives](#stage-1--filtering-23-m-sequences-down-to-122-representatives)
+  - [Stage 1 — filtering sequences](#stage-1--filtering-sequences)
   - [Between the stages — structure prediction](#between-the-stages--structure-prediction)
   - [Stage 2 — predicting properties and picking clade champions](#stage-2--predicting-properties-and-picking-clade-champions)
   - [Reading the outputs](#reading-the-outputs)
@@ -17,78 +17,48 @@ This tutorial walks you through a complete, real EnzymeSifter run from start to 
 - [Tips for choosing parameter values](#tips-for-choosing-parameter-values)
 ---
  
-## Worked example: trypsin-like proteases from a soil metaproteome
+## Worked example: trypsins from soil samples
  
 ### The starting material
  
-The input was a single multi-FASTA of **2,330,712 protein sequences** translated from a soil metaproteomics dataset, with sequence headers normalised to unique IDs:
+The input was a single multi-FASTA of **2,330,712 protein sequences** available at. Sequence headers were cut at the first (–) to avoid very long headers, the gene number was kept so no duplicates appear in the initial dataset. The command used: 
  
 ```
-~/soil_proteins/soil_proteins_renamed.fasta
+sed -E 's/^(>[^-]+)-NODE-[^_]+_([0-9]+).*/\1_\2/' soil_proteins_combined.fasta > soil_proteins.fasta
 ```
  
-Our goal: produce a short, structurally diverse list of trypsin-like serine proteases that are predicted to be (a) soluble, (b) thermostable, and (c) active under mildly alkaline, ambient-temperature conditions — i.e. plausibly useful enzymes for downstream characterisation.
- 
-### Stage 1 — filtering 2.3 M sequences down to 122 representatives
+### Stage 1 — filtering sequences
  
 ```bash
-./run_stage1.sh ~/soil_proteins/soil_proteins_renamed.fasta \
-    -residues GDSGGP \
-    -pfam PF00089 \
-    -identity 50
+./run_stage1.sh ~/soil_proteins_renamed.fasta -residues GDSGGP -pfam PF00089 -identity 50
 ```
  
-What each flag does, and why these specific values:
- 
-- **`-residues GDSGGP`** keeps only sequences containing the literal six-residue stretch `G-D-S-G-G-P`. This is the conserved motif around the catalytic serine of chymotrypsin-family serine proteases, so it's a cheap, high-specificity first sieve. The `-residues` flag accepts regular expressions, so you could equally write `G.SGGP` to allow any residue in position 2.
-- **`-pfam PF00089`** runs `hmmsearch` (with Pfam gathering thresholds) against the *Trypsin* Pfam HMM. The motif alone catches false positives that happen to contain the hexapeptide; requiring a Pfam Trypsin hit confirms the domain architecture.
-- **`-identity 50`** clusters the remaining sequences at 50% identity with MMseqs2 and keeps one representative per cluster. 50% is aggressive — appropriate when you expect substantial sequence diversity in a metagenome and want a tractable number of structures to fold.
-The pipeline reports each filtering step in turn:
- 
-```
-Input sequences:         2330712
-Motif filter ('GDSGGP'): 367 matched
-Pfam filter (PF00089):   218 matched
-Non-redundant sequences: 122
-Identity threshold:      50.0%
-```
- 
-A few things worth noticing from this funnel:
- 
-- The motif-to-Pfam ratio (367 → 218) is the expected pattern: the motif alone catches some non-trypsin hits, and the Pfam HMM removes them.
-- Reducing 218 sequences to 122 representatives at 50% identity means roughly half of the Pfam hits were near-duplicates of one another — typical for metagenomic data where the same taxon contributes many similar sequences.
-- 122 structures is a sensible number to fold next: enough to populate a phylogeny meaningfully, but not so many that ESMFold/AlphaFold will take days.
-Reports for inspection: `data/stage1/clustering_report.tsv` (which sequence collapsed into which cluster), `data/stage1/motif_report.tsv` (where the motif was found in each sequence), and `data/stage1/pfam_report.tsv` (which Pfam HMM scored each hit).
- 
+- **`-residues GDSGGP`** keeps only sequences containing the literal six-residue motif `G-D-S-G-G-P`, A highly conserved motif in trypsins. This is a fast, high-specificity first sieve. The `-residues` flag accepts regular expressions, so you could write `G.SGGP` to allow any residue in position 2.
+- **`-pfam PF00089`** runs `hmmsearch` against Pfam HMM. The motif alone catches false positives that happen to contain the hexapeptide; requiring a Pfam Trypsin hit confirms the domain architecture.
+- **`-identity 50`** clusters the remaining sequences at 50% identity with MMseqs2 and keeps one representative per cluster.
+
+Stage 1 acted as a funnel and reduced the number of sequences from > 2.3 million to 122 trypsins using the above identified filters.
+
 ### Between the stages — structure prediction
  
-EnzymeSifter is deliberately agnostic about how you obtain structures. For this example we folded `data/stage1/nonredundant.fasta` with ESMFold on a GPU node and put the resulting 122 PDB files into `~/trypsin_pdbs/`. AlphaFold, ColabFold, OmegaFold, or experimental PDB downloads all work equally well — only the file extension (`.pdb`) and the presence of SEQRES records matter to Stage 2.
- 
-> The fact that Stage 2 launched **100 jobs** of EnzyMM rather than 122 is just Snakemake batching — each EnzyMM call is one job per PDB; the remaining 22 ran in the next wave shown in the log.
- 
-### Stage 2 — predicting properties and picking clade champions
+Only the file extension (`.pdb`) and the presence of SEQRES records matter to Stage 2. After submitting our 122 sequences to AlphaFold server, the jobs were named as the headers but with a - instead of the dot, gene numbers were also removed from the job name as no duplicates remained in the filtered dataset. PDBs are available at 
+
+### Stage 2 — structural features
  
 ```bash
-./run_stage2.sh ~/trypsin_pdbs/ \
-    -solubility 0.6 \
-    -tm 55 \
-    -phopt 7:9 \
-    -topt 30:45 \
-    -clades 11
+./run_stage2.sh ~/trypsin_pdbs/ -solubility 0.6 -tm 55 -phopt 7:9 -topt 30:45 -clades 11
 ```
  
-Why these values:
- 
-- **`-solubility 0.6`** is a fairly stringent NetSolP cutoff. NetSolP outputs solubility on a 0–1 scale and ≥ 0.6 generally separates "likely to express solubly in *E. coli*" from "probably needs refolding or a fusion partner". Loosen this to 0.4 if your panel is small.
-- **`-tm 55`** asks for predicted melting temperatures of at least 55 °C — a soft "is this a mesophile or better?" cut. Because we passed it as a single number (cutoff mode), the score for this property is normalised across the *passing* pool, so higher Tm is rewarded.
-- **`-phopt 7:9`** keeps enzymes whose predicted pH optimum sits in `[7, 9]`, with the scoring rubric most rewarding values near the midpoint (pH 8). Trypsin family enzymes are classically active at slightly alkaline pH so this is biologically aligned.
-- **`-topt 30:45`** asks for an ambient-to-warm temperature optimum (mid 37 °C). If you wanted a thermophilic variant you'd push this to `55:75`.
-- **`-clades 11`** partitions the resulting NJ tree into 11 clades by binary-searching the smallest tip-distance threshold that produces ≤ 11 clades. A rough rule of thumb is `clades ≈ √N` for `N` input structures — with 122 PDBs, 11 sits right at √122 ≈ 11.05 and gives you a structurally diverse shortlist of around a dozen candidates with one representative per clade.
-While the pipeline runs you'll see a long burst of `Activating conda environment` lines as Snakemake spins up 122 parallel EnzyMM jobs, then the checkpoint resolves and per-chain predictors (NetSolP, Seq2Topt/Seq2Tm) run on the merged FASTA while pHoptNN runs on the EnzyMM-passing PDBs in parallel. That's the expected pattern — EnzyMM is the bottleneck on first pass; the per-property predictors are fast once their environments are built.
+- **`-solubility 0.6`** NetSolP outputs solubility on a 0–1 scale.
+- **`-tm 55`** asks for predicted melting temperatures of at least 55 °C. Because we passed it as a single number (cutoff mode), the score for this property is normalised across the *passing* pool, so higher Tm is rewarded.
+- **`-phopt 7:9`** keeps enzymes whose predicted pH optimum sits in `[7, 9]`, with the scoring rubric most rewarding values near the midpoint (pH 8).
+- **`-topt 30:45`** Same logic as in pH optimum but for optimum temperature.
+- **`-clades 11`** partitions the resulting NJ tree into 11 clades.
+
  
 ### Reading the outputs
  
-After the run, `predictions_output/` contains the three files that matter:
+After the run, `predictions_output/` contains three files:
  
 ```
 predictions_output/
@@ -97,9 +67,9 @@ predictions_output/
 └── clade_representatives.tsv       # one winner per clade among the filtered enzymes
 ```
  
-`clade_representatives.tsv` is the answer to "give me a structurally diverse shortlist of trypsins that satisfy my biophysical criteria". Each row reports the winning PDB for one clade, its combined score in `[0, 1]`, how many filter-passing enzymes were available in that clade (`n_eligible_in_clade`), and how many total members the clade has (`n_members_in_clade`). Clades with no passing members appear with `ID = NA` — useful information, because it tells you that an entire branch of your phylogeny failed the filters.
+`clade_representatives.tsv` is the answer to "give me a structurally diverse shortlist of trypsins that satisfy my biophysical criteria". Each row reports the winning PDB for one clade, its combined score in `[0, 1]`, how many filter-passing enzymes were available in that clade (`n_eligible_in_clade`), how many total members the clade has (`n_members_in_clade`), and the predicted values for that enzyme. Clades with no passing members appear with `ID = NA`, so it tells you that no member of this clade passed the filters.
  
-The full table sources are in `data/predictions/` (raw per-tool outputs), and the phylogenetic context — tree, clade assignments, coloured tree PNG with stars marking the clade representatives — lives in `data/trees/` and `data/clades/`.
+The unmerged predictions (per-tool outputs) are in `data/predictions/`, and the phylogenetic context — tree, clade assignments, coloured tree PNG with stars marking the clade representatives — lives in `data/trees/` and `data/clades/`.
  
 A typical follow-up at this point is to open `data/trees/nj_tree_clades.png`, scan which clades produced winners and which didn't, and use that to decide whether your filters were too strict, whether to repeat Stage 2 with different intervals, or whether the winners are ready for synthesis.
  
