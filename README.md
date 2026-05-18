@@ -70,10 +70,8 @@ The pipeline runs in two stages with a structure-prediction step (carried out ex
 
 ## Requirements
 
-- Linux
 - [Conda](https://docs.conda.io/en/latest/miniconda.html)
 - [Snakemake](https://snakemake.readthedocs.io/)
-- CPU is sufficient for all steps.
 
 EnzymeSifter creates and manages its own conda environments automatically via `snakemake --use-conda`. You do not need to install any of the underlying tools yourself.
 
@@ -94,7 +92,7 @@ Make the run scripts executable:
 chmod +x run_stage1.sh run_stage2.sh
 ```
 
-That is all you need to do. On the first invocation of either stage, Snakemake will build all of the required tool-specific conda environments under `.snakemake/conda/`, and the relevant setup scripts (`scripts/setup_*.sh`) will fetch external databases and model weights into `external/`.
+On the first invocation of either stage, Snakemake will build all of the required tool-specific conda environments under `.snakemake/conda/`, and the relevant setup scripts (`scripts/setup_*.sh`) will fetch external databases and model weights into `external/`.
 
 ---
 
@@ -113,7 +111,7 @@ That is all you need to do. On the first invocation of either stage, Snakemake w
 
 ### Between the stages — structure prediction
 
-Stage 2 needs a directory of PDB files corresponding to the Stage 1 non-redundant FASTA.
+Stage 2 needs a directory of PDB files of the filtered sequences.
 
 ### Stage 2
 
@@ -128,20 +126,6 @@ Usage: ./run_stage2.sh /path/to/pdbs [filter options] [clade options]
 See tutorial for complete features of the pipeline
 
 ---
-
-## Troubleshooting
-
-**`No SEQRES sequences found in the PDB`.**
-Several structure-prediction tools omit SEQRES records by default. Use a tool that emits them (or post-process the PDB to add them) — Stage 2 relies on SEQRES for sequence recovery.
-
-**CLEAN skips long sequences.**
-ESM-1b's input limit is 1022 residues. `run_clean_filter.py` skips longer sequences with a `WARN` and records `SKIPPED_TOO_LONG` in the EC report.
-
-**Snakemake complains about a corrupted partial download.**
-The `setup_*.sh` scripts retry up to twice on corrupt archives. If they still fail, delete the offending file under `external/` and re-run.
-
----
-
 
 ## License
 
