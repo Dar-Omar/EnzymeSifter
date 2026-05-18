@@ -35,7 +35,7 @@ sed -E 's/^(>[^-]+)-NODE-[^_]+_([0-9]+).*/\1_\2/' soil_proteins_combined.fasta >
 - **`-pfam PF00089`** runs `hmmsearch` against Pfam HMM. The motif alone catches false positives that happen to contain the hexapeptide; requiring a Pfam Trypsin hit confirms the domain architecture.
 - **`-identity 50`** clusters the remaining sequences at 50% identity with MMseqs2 and keeps one representative per cluster.
 
-Stage 1 acted as a funnel and reduced the number of sequences from > 2.3 million to 122 trypsins using the above identified filters. The input can be a single FASTA file (`.fasta`, `.fa`, `.faa`) or a directory containing one or more such files.
+Stage 1 acted as a funnel and reduced the number of sequences from > 2.3 million to 122 trypsins using the above identified filters.
 
 
 ### Between the stages — structure prediction
@@ -131,17 +131,12 @@ EnzymeSifter/
 Usage: ./run_stage1.sh <input> [options]
 ```
  
-`<input>` is **required** and can be either a single FASTA (`.fasta` / `.fa` / `.faa`) or a directory containing one or more such files. When given a directory, EnzymeSifter concatenates all FASTAs transparently before processing.
- 
-All filtering options are independent; supplying none of them runs Stage 1 as a passthrough that simply writes the input back out.
+`<input>` is **required** and can be either a single FASTA (`.fasta` / `.fa` / `.faa`) or a directory containing one or more such files. All filtering options are independent; supplying none of them runs Stage 1 as a passthrough that simply writes the input back out.
  
 ### `-residues <motif>`
  
-Keep only sequences whose amino-acid string matches a regex motif (case-insensitive).
- 
-- `.` matches any single residue.
-- Anything else is interpreted as a literal residue.
-- The motif is searched anywhere in the sequence.
+Keep only sequences whose amino-acid string matches a regex motif (case-insensitive), `.` matches any single residue.
+
 Examples:
  
 ```bash
@@ -149,22 +144,20 @@ Examples:
 -residues G.S.G         # GxSxG
 ```
  
-The matching position is recorded in `data/stage1/motif_report.tsv`, which is handy when you want to confirm the motif sits where you expected (e.g. nucleophile-elbow loops are usually around residue 100–200 in α/β hydrolases).
+The matching position is recorded in `data/stage1/motif_report.tsv`, which is handy when you want to confirm the position of the motif.
  
 ### `-pfam <IDs>`
  
-Comma-separated list of Pfam accessions in `PFXXXXX` form. Sequences are kept if they hit **any one** of the listed accessions (OR logic) at Pfam gathering thresholds.
+Comma-separated list of Pfam accessions in `PFXXXXX` form. Sequences are kept if they hit any of the listed accessions.
  
 ```bash
 -pfam PF00089                   # Trypsin
 -pfam PF00089,PF07519           # Trypsin OR Tannase
 ```
  
-On the first run, `setup_pfam.sh` downloads `Pfam-A.hmm` into `external/pfam/` and builds the `hmmfetch` index. Subsequent runs reuse it.
- 
 ### `-ec <IDs>`
  
-Comma-separated list of EC numbers. Partial specs are wildcards:
+Comma-separated list of EC numbers, partial specs are wildcards:
  
 | Spec | Means |
 |---|---|
@@ -180,11 +173,10 @@ Multiple specs use OR logic:
 ```
  
 - CLEAN's underlying ESM-1b embedder caps sequences at 1022 residues. Longer sequences are *skipped* with a warning and marked `SKIPPED_TOO_LONG` in the EC report.
-- First-run downloads: CLEAN repo + pretrained weights, and ESM-1b on first inference.
 
 ### `-identity <pct>`
  
-Cluster sequences with MMseqs2 at `<pct>`% identity and keep one representative per cluster. The full cluster membership ends up in `data/stage1/clustering_report.tsv` with two columns: `representative` and `member`.
+Cluster sequences with MMseqs2 at `<pct>`% identity and keep one representative per cluster. The full cluster membership in clustering_report.tsv has two columns: `representative` and `member`.
  
 ### Filter order
  
@@ -214,6 +206,7 @@ All filters are optional. Supplying any of them does **two** things:
  
 1. Filters `predictions_output/all_predictions.tsv` (or the multi-chain pair) into a `*_filtered.tsv`.
 2. Defines the scoring rubric used for clade-representative selection (best when combined with `-clades`).
+
 #### `-solubility <min>` *(cutoff only)*
  
 Keep enzymes whose NetSolP-predicted solubility is ≥ `<min>`.
