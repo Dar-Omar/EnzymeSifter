@@ -66,11 +66,29 @@ predictions_output/
 ├── all_predictions_filtered.tsv    # subset that passed your -solubility/-tm/-phopt/-topt filters
 └── clade_representatives.tsv       # one winner per clade among the filtered enzymes
 ```
+
+#### Column reference for the merged tables
+
+| Column | Source | Notes |
+|---|---|---|
+| `ID` | PDB filename stem | Canonical identifier. |
+| `chain_id` | derived from SEQRES | Only present in the multi-chain table. |
+| `predicted_solubility` | NetSolP | 0–1, higher = more soluble. |
+| `predicted_usability` | NetSolP | 0–1, higher = more usable. |
+| `predicted_ph_opt` | pHoptNN | Predicted optimal pH. |
+| `predicted_topt_C` | Seq2Topt | Predicted optimum temperature, °C. |
+| `predicted_tm_C` | Seq2Tm | Predicted melting temperature, °C. |
+| `score` | EnzymeSifter | Combined score over user-specified filters, `[0, 1]`. |
+| `n_eligible_in_clade` | EnzymeSifter | How many single-sequence PDBs in this clade passed filters. |
+| `n_members_in_clade` | EnzymeSifter | Total tips in this clade. |
+
+`NA` indicates that a particular predictor could not score that enzyme (e.g. an excessively long sequence skipped by CLEAN's ESM-1b 1022-aa limit).
+
  
-`clade_representatives.tsv` is the answer to "give me a structurally diverse shortlist of trypsins that satisfy my biophysical criteria". Each row reports the winning PDB for one clade, its combined score in `[0, 1]`, how many filter-passing enzymes were available in that clade (`n_eligible_in_clade`), how many total members the clade has (`n_members_in_clade`), and the predicted values for that enzyme. Clades with no passing members appear with `ID = NA`, so it tells you that no member of this clade passed the filters.
- 
-The coloured tree PNG with stars marking the clade representatives lives in `data/trees/`. A typical follow-up at this point is to open `data/trees/nj_tree_clades.png`, scan which clades produced winners and which didn't, and use that to decide whether your filters were too strict, whether to repeat Stage 2 with different filters, or whether the winners are ready for synthesis.
- 
+`clade_representatives.tsv` is the answer to "give me a structurally diverse shortlist of trypsins that satisfy my biophysical criteria". Each row reports the winning PDB for one clade, its combined score in `[0, 1]`, how many filter-passing enzymes were available in that clade (`n_eligible_in_clade`), how many total members the clade has (`n_members_in_clade`), and the predicted values for that enzyme. Clades with no passing members appear with `ID = NA`, so it tells you that no member of this clade passed the filters. 
+
+The coloured tree PNG with stars marking the clade representatives lives in `data/trees/`. A typical follow-up at this point is to open `data/trees/nj_tree_clades.png`, scan which clades produced winners and which didn't, and use that to decide whether your filters were too strict, whether to repeat Stage 2 with different filters, or whether the winners are ready for synthesis. The entire output of the first run is available at
+
 ---
  
 ## Stage 1 options reference
