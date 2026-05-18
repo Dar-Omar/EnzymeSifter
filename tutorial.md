@@ -28,7 +28,7 @@ sed -E 's/^(>[^-]+)-NODE-[^_]+_([0-9]+).*/\1_\2/' soil_proteins_combined.fasta >
 ### Stage 1 — filtering sequences
  
 ```bash
-./run_stage1.sh /PATH/TO/soil_proteins_renamed.fasta -residues GDSGGP -pfam PF00089 -identity 50
+./run_stage1.sh /path/to/soil_proteins_renamed.fasta -residues GDSGGP -pfam PF00089 -identity 50
 ```
  
 - **`-residues GDSGGP`** keeps only sequences containing the literal six-residue motif `G-D-S-G-G-P`, a highly conserved motif in trypsins. This is a fast, high-specificity first sieve. The `-residues` flag accepts regular expressions, so you could write `G.SGGP` to allow any residue in position 2.
@@ -45,7 +45,7 @@ The file extension (`.pdb`) and the presence of SEQRES records matter to Stage 2
 ### Stage 2 — predicting properties and representatives
  
 ```bash
-./run_stage2.sh /PATH/TO/pdbs/ -solubility 0.6 -tm 55 -phopt 7:9 -topt 30:45 -clades 11
+./run_stage2.sh /path/to/pdbs/ -solubility 0.6 -tm 55 -phopt 7:9 -topt 30:45 -clades 11
 ```
  
 - **`-solubility 0.6`** NetSolP outputs solubility on a 0–1 scale.
@@ -86,7 +86,7 @@ predictions_output/
  
 `clade_representatives.tsv` is the answer to "give me a structurally diverse shortlist of trypsins that satisfy my biophysical criteria". Each row reports the winning PDB for one clade, its combined score in `[0, 1]`, how many filter-passing enzymes were available in that clade (`n_eligible_in_clade`), how many total members the clade has (`n_members_in_clade`), and the predicted values for that enzyme. Clades with no passing members appear with `ID = NA`, so it tells you that no member of this clade passed the filters. 
 
-The coloured tree PNG with stars marking the clade representatives lives in `data/trees/`. A typical follow-up at this point is to open `data/trees/nj_tree_clades.png`, scan which clades produced winners and which didn't, and use that to decide whether your filters were too strict, whether to repeat Stage 2 with different filters, or whether the winners are ready for synthesis. The entire output of the test run is available at
+The coloured tree PNG with stars marking the clade representatives lives in `data/trees/`. A typical follow-up at this point is to open `data/trees/nj_tree_clades.png`, scan which clades produced winners and which didn't, and use that to decide whether your filters were too strict, whether to repeat Stage 2 with different filters, or whether the winners are ready for synthesis. The entire output of the test run is available at the Supplementary data of EnzymeSifter published paper.
 
 ---
 
