@@ -1,9 +1,7 @@
 # EnzymeSifter tutorial
  
-This tutorial walks you through a complete, real EnzymeSifter run from start to finish and then documents every option available in both stages so you can adapt the workflow to your own project.
- 
-The example throughout is **mining a soil metaproteome for trypsin-like serine proteases** — a useful benchmark because the catalytic chemistry, the diagnostic sequence motif (`GDSGGP`) and the Pfam family (`PF00089`, *Trypsin*) are all well established, which makes it easy to see whether the pipeline is doing something sensible at each step.
- 
+This tutorial walks you through a complete, real EnzymeSifter run from start to finish and then documents every option available in both stages so you can adapt the workflow to your own project. The test run used in the published EnzymeSifter paper is demonstrated here as an example.
+
 ---
  
 ## Table of contents
