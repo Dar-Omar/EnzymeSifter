@@ -93,8 +93,6 @@ The coloured tree PNG with stars marking the clade representatives lives in `dat
 
 ## Output structure
 ```
-
-
 EnzymeSifter/
 ├── data/
 │   ├── stage1/
