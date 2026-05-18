@@ -24,11 +24,11 @@ A two-stage Snakemake pipeline for sifting through sequences and identifying pro
 
 ## Overview
 
-The pipeline runs in two stages with a structure-prediction step (carried out by the user, externally) in between. Users are free to choose any of the optional filters:
+The pipeline runs in two stages with a structure-prediction step (carried out externally by the user) in between. Users are free to choose any of the optional filters:
 
-1. **Stage 1 — filtering of sequences.** Filter by catalytic-residue motif, Pfam domain, and/or CLEAN-predicted EC number, then cluster at a user-defined identity threshold using MMseqs2.
-2. **(User step) Structure prediction.** Generate PDB structures for the Stage 1 filtered sequences using a tool of your choice.
-3. **Stage 2 — structural & biophysical screening.** Confirm enzymatic activity with EnzyMM, predict solubility/usability (NetSolP), optimal pH (pHoptNN), and optimal/melting temperatures (Seq2Topt/Seq2Tm), build an NJ phylogenetic tree, optionally partition it into clades, and select the best-scoring representative per clade according to your filter criteria.
+1. **Stage 1 — filtering of sequences.** Filter by catalytic-residue motif, one or more Pfam families, and/or CLEAN-predicted EC number(s), then cluster at a user-defined identity threshold using MMseqs2.
+2. **(User step) Structure prediction.** Generate PDB structures for the Stage 1 filtered sequences.
+3. **Stage 2 — structural & biophysical screening.** Confirm enzymatic activity with EnzyMM, predict solubility/usability (NetSolP), optimal pH (pHoptNN), and optimal/melting temperatures (Seq2Topt/Seq2Tm), build an NJ tree, optionally partition it into clades, and select the best-scoring representative per clade according to your filtering criteria.
 
 ---
 
@@ -105,29 +105,6 @@ That is all you need to do. On the first invocation of either stage, Snakemake w
 
 ---
 
-## Quickstart
-
-Sift a FASTA of candidate sequences, predict structures yourself, then run structural/biophysical screening:
-
-```bash
-# Stage 1: pull out the Pfam PF07519 hits, dereplicate at 90% identity
-./run_stage1.sh test_input/my_sequences.fasta -pfam PF07519 -identity 90
-
-# (predict structures for data/stage1/nonredundant.fasta using
-#  your structure-prediction tool of choice — place the resulting
-#  .pdb files into ./predicted_pdbs/ )
-
-# Stage 2: confirm enzymatic activity, predict properties,
-#          partition the resulting NJ tree into 8 clades, and
-#          pick the best representative per clade
-./run_stage2.sh ./predicted_pdbs \
-    -tm 50:80 -topt 35:42 -phopt 7:8.5 \
-    -usability 0.35 -solubility 0.4 \
-    -clades 8
-```
-
----
-
 ## Stage 1 — sequence filtering & clustering
 
 ```
@@ -136,50 +113,11 @@ Usage: ./run_stage1.sh <input> [options]
 
 `<input>` can be a single FASTA file (`.fasta`, `.fa`, `.faa`) or a directory containing one or more such files (which will be concatenated transparently).
 
-### Options
-
-| Flag | Description |
-|---|---|
-| `-residues <motif>` | Keep sequences matching a regex motif. `.` matches any single residue. E.g. `G.S.G`, `SHD`. Case-insensitive. |
-| `-pfam <IDs>` | Comma-separated Pfam accessions (`PFXXXXX`). Keeps sequences with at least one hit at Pfam gathering thresholds via `hmmsearch`. OR-logic across multiple IDs. |
-| `-ec <IDs>` | Comma-separated EC numbers; partial specifications allowed (`3.13.-.-` ≡ `3.13`). OR-logic. Uses CLEAN's max-separation inference. |
-| `-identity <pct>` | Cluster at `<pct>`% identity using MMseqs2 (`-c 0.8`, cluster-mode 2) and keep one representative per cluster. |
-
-Filters apply in order: **residues → Pfam → EC → identity clustering**. Any subset can be omitted; if no filters are given, sequences pass through unchanged.
-
-### Examples
-
-```bash
-# Motif only
-./run_stage1.sh seqs.fasta -residues G.S.G
-
-# Pfam + identity clustering
-./run_stage1.sh seqs.fasta -pfam PF07519 -identity 90
-
-# Two Pfam IDs (OR), then EC filter
-./run_stage1.sh seqs.fasta -pfam PF07519,PF00657 -ec 3.13.1.8
-
-# Everything
-./run_stage1.sh seqs.fasta \
-    -residues G.S.G -pfam PF07519 -ec 3.13.-.- -identity 95
-```
-
-### First-run downloads
-
-- `-pfam` triggers download of the current Pfam-A.hmm (~1.5 GB) into `external/pfam/`.
-- `-ec` triggers cloning of [CLEAN](https://github.com/tttianhao/CLEAN) and download of pretrained weights from Google Drive (~few hundred MB) into `external/CLEAN/`. The first actual inference call additionally downloads ESM-1b (~7 GB) into `~/.cache/torch/`.
-
 ---
 
 ## Between the stages — structure prediction
 
-Stage 2 needs a directory of PDB files corresponding to the Stage 1 non-redundant FASTA. EnzymeSifter is deliberately agnostic to **how** you obtain those structures — fold them with AlphaFold2/3, ESMFold, ColabFold, OmegaFold, or download experimental structures from the PDB, whichever fits your workflow.
-
-Conventions Stage 2 expects:
-
-- One `.pdb` file per protein (multi-chain PDBs are supported).
-- PDB filenames are used as the canonical `ID` throughout the rest of the pipeline (no extension). Avoid spaces or special characters; underscores are fine.
-- Each PDB should contain SEQRES records — these are what `scripts/extract_sequences.py` reads to recover the amino-acid sequence for the per-chain predictors.
+Stage 2 needs a directory of PDB files corresponding to the Stage 1 non-redundant FASTA.
 
 ---
 
@@ -187,50 +125,6 @@ Conventions Stage 2 expects:
 
 ```
 Usage: ./run_stage2.sh /path/to/pdbs [filter options] [clade options]
-```
-
-### Filter options
-
-All optional. When supplied, they (a) filter the merged predictions table into a `*_filtered.tsv` and (b) define the scoring rubric used by clade-representative selection.
-
-| Flag | Form | Meaning |
-|---|---|---|
-| `-solubility <min>` | cutoff | Keep enzymes with `predicted_solubility ≥ min`. |
-| `-usability <min>` | cutoff | Keep enzymes with `predicted_usability ≥ min`. |
-| `-tm <min>` *or* `<lo:hi>` | cutoff or interval | Either a lower bound on Tm, or an inclusive interval (mid-point preferred when scoring). |
-| `-topt <lo:hi>` | interval (required) | Keep enzymes with `Topt` inside `[lo, hi]`. |
-| `-phopt <lo:hi>` | interval (required) | Keep enzymes with `pH optimum` inside `[lo, hi]`. |
-
-### Clade options
-
-| Flag | Description |
-|---|---|
-| `-clades <n>` | Cut the NJ tree into `n` clades (by binary-searching the smallest distance threshold that yields ≤ `n` clades). When combined with filter options, also writes `predictions_output/clade_representatives.tsv` with the best-scoring enzyme per clade. |
-
-### Scoring rubric (when filter flags are present)
-
-Every enzyme that passes all filters receives a score in `[0, 1]` per property:
-
-- **Cutoff properties (`solubility`, `usability`, `tm` in cutoff mode):** normalised across the passing pool — `(value − pool_min) / (pool_max − pool_min)`, so higher is better.
-- **Interval properties (`phopt`, `topt`, `tm` in interval mode):** `1 − |value − midpoint| / half_width`, so being close to the midpoint of the interval is best.
-
-The combined score is the arithmetic mean of the per-property scores over the user-specified properties for which that enzyme has a non-NA prediction. Multi-sequence PDBs (heteromers) are excluded from representative selection because per-chain scores cannot be meaningfully averaged into a single structure-level score.
-
-### Examples
-
-```bash
-# Bare minimum: just run EnzyMM, predictors, MUSCLE, and the NJ tree
-./run_stage2.sh /data/pdbs
-
-# Single-cutoff filter
-./run_stage2.sh /data/pdbs -usability 0.35 -solubility 0.4
-
-# Goldilocks-zone interval filtering
-./run_stage2.sh /data/pdbs -tm 50:80 -topt 35:42 -phopt 7:8
-
-# Full mode: filters + clade-based representative selection
-./run_stage2.sh /data/pdbs \
-    -usability 0.35 -tm 50:80 -topt 35:42 -clades 10
 ```
 
 ### First-run downloads
@@ -279,25 +173,6 @@ EnzymeSifter/
 │   └── clade_representatives.tsv        # one best enzyme per clade
 └── logs/                                # per-rule stderr captures
 ```
-
-### Column reference for the merged tables
-
-| Column | Source | Notes |
-|---|---|---|
-| `ID` | PDB filename stem | Canonical identifier. |
-| `chain_id` | derived from SEQRES | Only present in the multi-chain table. |
-| `predicted_solubility` | NetSolP | 0–1, higher = more soluble. |
-| `predicted_usability` | NetSolP | 0–1, higher = more usable. |
-| `predicted_ph_opt` | pHoptNN | Predicted optimal pH. |
-| `predicted_topt_C` | Seq2Topt | Predicted optimum temperature, °C. |
-| `predicted_tm_C` | Seq2Tm | Predicted melting temperature, °C. |
-| `score` | EnzymeSifter | Combined score over user-specified filters, `[0, 1]`. |
-| `n_eligible_in_clade` | EnzymeSifter | How many single-sequence PDBs in this clade passed filters. |
-| `n_members_in_clade` | EnzymeSifter | Total tips in this clade. |
-
-`NA` indicates that a particular predictor could not score that enzyme (e.g. an excessively long sequence skipped by CLEAN's ESM-1b 1022-aa limit).
-
----
 
 ## Troubleshooting
 
